@@ -1,0 +1,37 @@
+{
+  "_about": "Google Trends interest-by-subregion, captured via the Trends Explore UI on 2026-06-15. 12-month window, Web Search, one combined OR query per axis (single search item, so values are cross-region interest, NOT the multi-term 'shares trap'). Index 0-100, region with highest interest = 100, relative share-of-search not absolute volume.",
+  "queries": {
+    "direct_intent": "natural deodorant + aluminium free deodorant + refillable deodorant + plastic free deodorant",
+    "unaware_intent": "clean beauty + zero waste + plastic free + shampoo bar + low tox"
+  },
+  "country_direct_stability_Z": {"AU": 1.0, "NZ": 0.34},
+  "notes": "AU: all 8 states report direct + unaware. NZ direct intent is low-volume: only 10/16 regions cleared Google's reporting threshold and the series has ~35/53 zero weeks (hence low NZ Z). Regions with no direct data are imputed direct=0. Gisborne and West Coast reported neither axis; their unaware is imputed to a low floor (40). Marlborough tops NZ direct at 100 on a tiny sample (low-population inflation) and is flagged.",
+  "AU": {
+    "New South Wales": {"direct": 96, "unaware": 63, "z": 0.95},
+    "Victoria": {"direct": 95, "unaware": 67, "z": 0.95},
+    "Queensland": {"direct": 95, "unaware": 64, "z": 0.95},
+    "South Australia": {"direct": 97, "unaware": 59, "z": 0.95},
+    "Western Australia": {"direct": 98, "unaware": 62, "z": 0.95},
+    "Tasmania": {"direct": 90, "unaware": 55, "z": 0.95},
+    "Northern Territory": {"direct": 100, "unaware": 100, "z": 0.95, "flag": "small-population inflation likely"},
+    "Australian Capital Territory": {"direct": 81, "unaware": 58, "z": 0.95}
+  },
+  "NZ": {
+    "Northland": {"direct": 47, "unaware": 57, "z": 0.40},
+    "Auckland": {"direct": 27, "unaware": 77, "z": 0.40},
+    "Waikato": {"direct": 24, "unaware": 70, "z": 0.40},
+    "Bay of Plenty": {"direct": 20, "unaware": 76, "z": 0.40},
+    "Gisborne": {"direct": 0, "unaware": 40, "z": 0.20, "flag": "no Trends data either axis; imputed"},
+    "Hawke's Bay": {"direct": 0, "unaware": 52, "z": 0.20, "flag": "direct below threshold; imputed 0"},
+    "Taranaki": {"direct": 1, "unaware": 53, "z": 0.40},
+    "Manawatu-Whanganui": {"direct": 25, "unaware": 72, "z": 0.40},
+    "Wellington": {"direct": 27, "unaware": 100, "z": 0.40},
+    "Tasman": {"direct": 0, "unaware": 93, "z": 0.20, "flag": "direct below threshold; imputed 0"},
+    "Nelson": {"direct": 0, "unaware": 98, "z": 0.20, "flag": "direct below threshold; imputed 0"},
+    "Marlborough": {"direct": 100, "unaware": 87, "z": 0.40, "flag": "small-population inflation likely"},
+    "West Coast": {"direct": 0, "unaware": 40, "z": 0.20, "flag": "no Trends data either axis; imputed"},
+    "Canterbury": {"direct": 29, "unaware": 69, "z": 0.40},
+    "Otago": {"direct": 24, "unaware": 61, "z": 0.40},
+    "Southland": {"direct": 0, "unaware": 50, "z": 0.20, "flag": "direct below threshold; imputed 0"}
+  }
+}
