@@ -1,8 +1,8 @@
 streamlit
 pandas
 numpy
-plotly>=5.18,<6
+plotly>=5.24,<6
 requests
 pytrends
 
-# force rebuild 3
+# force rebuild 4

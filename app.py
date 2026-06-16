@@ -77,9 +77,10 @@ with st.sidebar:
     w_unaware = st.slider("Unaware adjacent intent", 0.0, 1.0, 0.25, 0.05)
     w_climate = st.slider("Climate / sweat", 0.0, 1.0, 0.10, 0.05)
     w_income = st.slider("Average income", 0.0, 1.0, 0.05, 0.05)
-    conf_threshold = st.slider("Flag thin competitor data below C =", 0.0, 1.0, 0.40, 0.05)
     weights = {"direct": w_direct, "unaware": w_unaware,
                "climate": w_climate, "income": w_income}
+
+conf_threshold = scoring.CONF_THRESHOLD  # fixed at 0.40; competition is context-only, not scored
 
 country_name = "Australia" if country == "AU" else "New Zealand"
 
