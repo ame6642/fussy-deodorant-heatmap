@@ -1,8 +1,8 @@
 """
 Boundary simplification and choropleth construction for the heatmap.
 
-Uses go.Choroplethmapbox with white-bg tiles.
-Requires plotly>=5,<6 (pinned in requirements.txt).
+Uses go.Choroplethmap (MapLibre) with white-bg tiles.
+Requires plotly>=5.24,<6 (pinned in requirements.txt).
 """
 import plotly.graph_objects as go
 
@@ -84,7 +84,7 @@ def simplify_geojson_adm2(raw: dict) -> dict:
 
 
 def make_map(df, gj: dict, title: str, country: str = "AU",
-             gj2: dict | None = None) -> go.Figure:
+             gj2: dict | None = None, show_low_conf: bool = False) -> go.Figure:
     # customdata cols: tier, direct_norm, unaware_norm, comp_net_norm,
     #                  comp_C, climate_norm, avg_income, population
     cd = df[["tier", "direct_norm", "unaware_norm", "comp_net_norm",
@@ -93,7 +93,6 @@ def make_map(df, gj: dict, title: str, country: str = "AU",
         "<b>%{location}</b><br>"
         "Opportunity %{z:.1f}/100  (tier %{customdata[0]})<br>"
         "Direct intent %{customdata[1]:.2f} | Unaware %{customdata[2]:.2f}<br>"
-        "Competition %{customdata[3]:.2f} (confidence %{customdata[4]:.2f})<br>"
         "Climate %{customdata[5]:.2f} | Avg income $%{customdata[6]:,.0f}<br>"
         "Population %{customdata[7]:,.0f}<extra></extra>"
     )
@@ -101,7 +100,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU",
     centre = _MAP_CENTRE[country]
     zoom = _MAP_ZOOM[country]
 
-    fig = go.Figure(go.Choroplethmapbox(
+    fig = go.Figure(go.Choroplethmap(
         geojson=gj,
         featureidkey="properties.region",
         locations=df["region"],
@@ -116,10 +115,10 @@ def make_map(df, gj: dict, title: str, country: str = "AU",
         hovertemplate=hover,
     ))
 
-    # Blue outline overlay for low-confidence regions
+    # Blue outline overlay for low-confidence regions (off by default; competition is context, not scored)
     low = df[df["low_confidence"]]
-    if not low.empty:
-        fig.add_trace(go.Choroplethmapbox(
+    if show_low_conf and not low.empty:
+        fig.add_trace(go.Choroplethmap(
             geojson=gj,
             featureidkey="properties.region",
             locations=low["region"],
@@ -136,7 +135,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU",
         features = gj2.get("features", [])
         if features:
             names = [f["properties"]["name"] for f in features]
-            fig.add_trace(go.Choroplethmapbox(
+            fig.add_trace(go.Choroplethmap(
                 geojson=gj2,
                 featureidkey="properties.name",
                 locations=names,
@@ -150,9 +149,9 @@ def make_map(df, gj: dict, title: str, country: str = "AU",
             ))
 
     fig.update_layout(
-        mapbox_style="white-bg",
-        mapbox_center=centre,
-        mapbox_zoom=zoom,
+        map_style="white-bg",
+        map_center=centre,
+        map_zoom=zoom,
         margin=dict(r=0, t=0, l=0, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
         height=520,
