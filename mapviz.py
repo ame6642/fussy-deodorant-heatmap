@@ -99,12 +99,23 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
 
     # fitbounds auto-zooms to just the data; visible=False removes the geo
     # background entirely so the map blends into the page (no ocean frame).
-    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_geos(
+        fitbounds="locations",
+        visible=False,
+        showland=False,
+        showocean=False,
+        showlakes=False,
+        showrivers=False,
+        showcountries=False,
+        showcoastlines=False,
+        showframe=False,
+        bgcolor="rgba(0,0,0,0)",
+    )
     fig.update_layout(
         margin=dict(r=0, t=0, l=0, b=0),
         height=520,
         paper_bgcolor="rgba(0,0,0,0)",
-        geo=dict(bgcolor="rgba(0,0,0,0)"),
+        plot_bgcolor="rgba(0,0,0,0)",
         coloraxis_colorbar_title="Opportunity",
     )
     return fig
