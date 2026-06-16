@@ -1,13 +1,10 @@
 """
 Boundary simplification and choropleth construction for the heatmap.
 
-Uses go.Choroplethmap (Plotly 6+ API) with carto-positron tiles.
-Falls back to go.Choroplethmapbox for Plotly 5.x.
+Uses go.Choroplethmapbox with carto-positron tiles.
+Requires plotly>=5,<6 (pinned in requirements.txt).
 """
-import plotly
 import plotly.graph_objects as go
-
-_PLOTLY_V6 = int(plotly.__version__.split(".")[0]) >= 6
 
 COORD_DP = {"AU": 2, "NZ": 3}
 DROP_FEATURES = {"Other Territories", "Chatham Islands Territory"}
@@ -80,9 +77,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
     centre = _MAP_CENTRE[country]
     zoom = _MAP_ZOOM[country]
 
-    TraceClass = go.Choroplethmap if _PLOTLY_V6 else go.Choroplethmapbox
-
-    fig = go.Figure(TraceClass(
+    fig = go.Figure(go.Choroplethmapbox(
         geojson=gj,
         featureidkey="properties.region",
         locations=df["region"],
@@ -100,7 +95,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
     # Blue outline overlay for low-confidence regions
     low = df[df["low_confidence"]]
     if not low.empty:
-        fig.add_trace(TraceClass(
+        fig.add_trace(go.Choroplethmapbox(
             geojson=gj,
             featureidkey="properties.region",
             locations=low["region"],
@@ -112,20 +107,11 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
             hoverinfo="skip",
         ))
 
-    if _PLOTLY_V6:
-        fig.update_layout(
-            map_style="carto-positron",
-            map_center=centre,
-            map_zoom=zoom,
-            margin=dict(r=0, t=0, l=0, b=0),
-            height=520,
-        )
-    else:
-        fig.update_layout(
-            mapbox_style="carto-positron",
-            mapbox_center=centre,
-            mapbox_zoom=zoom,
-            margin=dict(r=0, t=0, l=0, b=0),
-            height=520,
-        )
+    fig.update_layout(
+        mapbox_style="carto-positron",
+        mapbox_center=centre,
+        mapbox_zoom=zoom,
+        margin=dict(r=0, t=0, l=0, b=0),
+        height=520,
+    )
     return fig
