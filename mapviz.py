@@ -1,9 +1,8 @@
 """
 Boundary simplification and choropleth construction for the heatmap.
 
-Uses go.Choropleth with explicit lat/lon axis ranges to crop the viewport
-to just the country of interest, with visible=False to remove the geo
-background so the map floats cleanly on the page.
+Uses go.Choroplethmapbox with carto-positron tiles — the only approach that
+correctly renders individual AU/NZ state boundaries with custom GeoJSON.
 """
 import plotly.graph_objects as go
 
@@ -11,11 +10,11 @@ COORD_DP = {"AU": 2, "NZ": 3}
 DROP_FEATURES = {"Other Territories", "Chatham Islands Territory"}
 NAME_FIX = {"Manawatu-Wanganui": "Manawatu-Whanganui"}
 
-# Bounding boxes: [lat_min, lat_max, lon_min, lon_max]
-_GEO_BOUNDS = {
-    "AU": {"lataxis_range": [-44, -10], "lonaxis_range": [112, 155]},
-    "NZ": {"lataxis_range": [-48, -33], "lonaxis_range": [165, 179]},
+_MAP_CENTRE = {
+    "AU": {"lat": -27.0, "lon": 134.0},
+    "NZ": {"lat": -41.5, "lon": 173.0},
 }
+_MAP_ZOOM = {"AU": 3.0, "NZ": 4.2}
 
 
 def _round_ring(ring, nd):
@@ -75,9 +74,10 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
         "Population %{customdata[7]:,.0f}<extra></extra>"
     )
 
-    bounds = _GEO_BOUNDS[country]
+    centre = _MAP_CENTRE[country]
+    zoom = _MAP_ZOOM[country]
 
-    fig = go.Figure(go.Choropleth(
+    fig = go.Figure(go.Choroplethmapbox(
         geojson=gj,
         featureidkey="properties.region",
         locations=df["region"],
@@ -95,7 +95,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
     # Blue outline overlay for low-confidence regions
     low = df[df["low_confidence"]]
     if not low.empty:
-        fig.add_trace(go.Choropleth(
+        fig.add_trace(go.Choroplethmapbox(
             geojson=gj,
             featureidkey="properties.region",
             locations=low["region"],
@@ -107,18 +107,11 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
             hoverinfo="skip",
         ))
 
-    # Explicit lat/lon range crops the viewport to just the country.
-    # visible=False + transparent bgcolor removes the world map background.
-    fig.update_geos(
-        visible=False,
-        lataxis_range=bounds["lataxis_range"],
-        lonaxis_range=bounds["lonaxis_range"],
-        bgcolor="rgba(0,0,0,0)",
-    )
     fig.update_layout(
+        mapbox_style="carto-positron",
+        mapbox_center=centre,
+        mapbox_zoom=zoom,
         margin=dict(r=0, t=0, l=0, b=0),
         height=520,
-        paper_bgcolor="rgba(0,0,0,0)",
-        geo=dict(bgcolor="rgba(0,0,0,0)"),
     )
     return fig
