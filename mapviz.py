@@ -1,18 +1,21 @@
 """
 Boundary simplification and choropleth construction for the heatmap.
 
-Kept free of Streamlit so the geometry/name-matching logic (where the brief's
-'silent region drop' bug lives) can be unit-tested without a browser. app.py
-wraps load step with st.cache_data and the geoBoundaries fetch.
+Uses go.Choroplethmapbox with a Carto-positron tile background for crisp
+region outlines and proper geographic framing for both AU and NZ.
 """
 import plotly.graph_objects as go
 
-# geoBoundaries ADM1, pinned to commit 9469f09, served from the Git-LFS media host.
-GEO_URLS = {
-    "AU": "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/AUS/ADM1/geoBoundaries-AUS-ADM1_simplified.geojson",
-    "NZ": "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/NZL/ADM1/geoBoundaries-NZL-ADM1_simplified.geojson",
+# Per-country map framing
+_MAP_CENTRE = {
+    "AU": {"lat": -25.5, "lon": 134.0},
+    "NZ": {"lat": -41.5, "lon": 172.5},
 }
-COORD_DP = {"AU": 1, "NZ": 2}          # AU states are large -> coarser rounding is fine
+_MAP_ZOOM = {"AU": 2.8, "NZ": 4.2}
+
+# Higher precision to preserve region shapes (was 1 for AU — too coarse)
+COORD_DP = {"AU": 2, "NZ": 3}
+
 DROP_FEATURES = {"Other Territories", "Chatham Islands Territory"}
 NAME_FIX = {"Manawatu-Wanganui": "Manawatu-Whanganui"}
 
@@ -45,7 +48,7 @@ def _round_geom(g, nd):
 
 
 def simplify_geojson(raw: dict, country: str) -> dict:
-    """geoBoundaries -> light FeatureCollection with properties.region matching the CSVs."""
+    """geoBoundaries FeatureCollection -> light FeatureCollection with properties.region matching the CSVs."""
     nd = COORD_DP[country]
     feats = []
     for f in raw.get("features", []):
@@ -54,36 +57,60 @@ def simplify_geojson(raw: dict, country: str) -> dict:
             continue
         region = name.replace(" Region", "")
         region = NAME_FIX.get(region, region)
-        feats.append({"type": "Feature",
-                      "properties": {"region": region},
-                      "geometry": _round_geom(f["geometry"], nd)})
+        feats.append({
+            "type": "Feature",
+            "properties": {"region": region},
+            "geometry": _round_geom(f["geometry"], nd),
+        })
     return {"type": "FeatureCollection", "features": feats}
 
 
-def make_map(df, gj: dict, title: str) -> go.Figure:
+def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
     cd = df[["tier", "direct_norm", "unaware_norm", "comp_net_norm",
              "comp_C", "climate_norm", "regulatory_norm", "population"]].copy()
-    hover = ("<b>%{location}</b><br>"
-             "Opportunity %{z:.1f}/100  (tier %{customdata[0]})<br>"
-             "Direct intent %{customdata[1]:.2f} | Unaware %{customdata[2]:.2f}<br>"
-             "Competition %{customdata[3]:.2f} (confidence %{customdata[4]:.2f})<br>"
-             "Climate %{customdata[5]:.2f} | Regulatory %{customdata[6]:.2f}<br>"
-             "Population %{customdata[7]:,.0f}<extra></extra>")
-    fig = go.Figure(go.Choropleth(
-        geojson=gj, featureidkey="properties.region",
-        locations=df["region"], z=df["score_100"],
-        colorscale="YlOrRd", zmin=0, zmax=100,
-        marker_line_color="white", marker_line_width=0.6,
-        colorbar_title="Opportunity", customdata=cd, hovertemplate=hover,
+    hover = (
+        "<b>%{location}</b><br>"
+        "Opportunity %{z:.1f}/100  (tier %{customdata[0]})<br>"
+        "Direct intent %{customdata[1]:.2f} | Unaware %{customdata[2]:.2f}<br>"
+        "Competition %{customdata[3]:.2f} (confidence %{customdata[4]:.2f})<br>"
+        "Climate %{customdata[5]:.2f} | Regulatory %{customdata[6]:.2f}<br>"
+        "Population %{customdata[7]:,.0f}<extra></extra>"
+    )
+    fig = go.Figure(go.Choroplethmapbox(
+        geojson=gj,
+        featureidkey="properties.region",
+        locations=df["region"],
+        z=df["score_100"],
+        colorscale="YlOrRd",
+        zmin=0, zmax=100,
+        marker_line_color="white",
+        marker_line_width=0.8,
+        colorbar_title="Opportunity",
+        customdata=cd,
+        hovertemplate=hover,
     ))
+
+    # Blue outline overlay for low-confidence regions
     low = df[df["low_confidence"]]
     if not low.empty:
-        fig.add_trace(go.Choropleth(
-            geojson=gj, featureidkey="properties.region",
-            locations=low["region"], z=[0] * len(low), showscale=False,
+        fig.add_trace(go.Choroplethmapbox(
+            geojson=gj,
+            featureidkey="properties.region",
+            locations=low["region"],
+            z=[0] * len(low),
+            showscale=False,
             colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
-            marker_line_color="#2b6cb0", marker_line_width=3.0, hoverinfo="skip",
+            marker_line_color="#2b6cb0",
+            marker_line_width=3.0,
+            hoverinfo="skip",
         ))
-    fig.update_geos(fitbounds="locations", visible=False)
-    fig.update_layout(title=title, margin=dict(l=0, r=0, t=40, b=0), height=560)
+
+    fig.update_layout(
+        mapbox_style="carto-positron",
+        mapbox_center=_MAP_CENTRE[country],
+        mapbox_zoom=_MAP_ZOOM[country],
+        title=title,
+        margin=dict(l=0, r=0, t=40, b=0),
+        height=560,
+    )
     return fig

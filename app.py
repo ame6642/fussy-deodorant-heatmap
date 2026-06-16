@@ -20,7 +20,6 @@ import scoring
 import mapviz
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = os.path.join(HERE, "geojson_cache")
 
 st.set_page_config(page_title="Fussy AU/NZ deodorant heatmap", layout="wide")
 
@@ -33,22 +32,22 @@ def load_regions(country: str) -> pd.DataFrame:
     return df
 
 
+# geoBoundaries REST API — returns metadata with a real CDN download URL (not Git LFS)
+_GEO_API = {
+    "AU": "https://www.geoboundaries.org/api/current/gbOpen/AUS/ADM1/",
+    "NZ": "https://www.geoboundaries.org/api/current/gbOpen/NZL/ADM1/",
+}
+
+
 @st.cache_data(show_spinner="Loading region boundaries...")
 def load_geojson(country: str) -> dict:
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    cache = os.path.join(CACHE_DIR, f"{country}.geojson")
-    if os.path.exists(cache):
-        with open(cache, encoding="utf-8") as f:
-            return json.load(f)
-    r = requests.get(mapviz.GEO_URLS[country], timeout=60)
+    # Step 1: ask the API for the real download URL (avoids Git LFS pointer files)
+    meta = requests.get(_GEO_API[country], timeout=30).json()
+    url = meta["gjDownloadURL"]
+    # Step 2: download the actual GeoJSON
+    r = requests.get(url, timeout=120)
     r.raise_for_status()
-    gj = mapviz.simplify_geojson(r.json(), country)
-    try:
-        with open(cache, "w", encoding="utf-8") as f:
-            json.dump(gj, f)
-    except OSError:
-        pass  # read-only/ephemeral host FS -> rely on st.cache_data in-memory cache
-    return gj
+    return mapviz.simplify_geojson(r.json(), country)
 
 
 st.title("Fussy - Australia & New Zealand acquisition heatmap")
@@ -90,7 +89,7 @@ if missing:
 left, right = st.columns([1.05, 1.0])
 with left:
     st.plotly_chart(
-        mapviz.make_map(df, gj, f"{'Australia' if country == 'AU' else 'New Zealand'} opportunity"),
+        mapviz.make_map(df, gj, f"{'Australia' if country == 'AU' else 'New Zealand'} opportunity", country=country),
         width="stretch")
     st.caption("Thick blue outline = low confidence (thin competitor data; score leans on search intent).")
 
