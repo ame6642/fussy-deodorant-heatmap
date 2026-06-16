@@ -108,10 +108,11 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
         ))
 
     fig.update_layout(
-        mapbox_style="carto-positron",
+        mapbox_style="white-bg",
         mapbox_center=centre,
         mapbox_zoom=zoom,
         margin=dict(r=0, t=0, l=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
         height=520,
     )
     return fig

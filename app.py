@@ -92,6 +92,7 @@ if missing:
 st.plotly_chart(
     mapviz.make_map(df, gj, f"{country_name} opportunity", country=country),
     use_container_width=True,
+    config={"scrollZoom": True},
 )
 st.caption("Thick blue outline = low confidence (thin competitor data; score leans on search intent).")
 
