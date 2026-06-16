@@ -1,15 +1,11 @@
 """
-Fussy AU + NZ deodorant acquisition heatmap.
+Natural Deodorant Acquisition Opportunity heatmap.
 
-Interactive Streamlit choropleth that ranks Australian states/territories and
-New Zealand regions by opportunity score for a premium / natural ("fussy")
-deodorant brand: live search intent (Google Trends), a confidence-gated
-competition layer, climate and regulatory signals. Adjust the sidebar weights
-and both the map and the ranking table update.
+Interactive Streamlit choropleth ranking Australian states/territories and
+New Zealand regions by opportunity score for a natural deodorant brand.
 
 Run:   streamlit run app.py
 """
-import json
 import os
 
 import pandas as pd
@@ -21,42 +17,42 @@ import mapviz
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-st.set_page_config(page_title="Fussy AU/NZ deodorant heatmap", layout="wide")
+st.set_page_config(page_title="Natural Deodorant Acquisition Opportunity", layout="wide")
 
 
 @st.cache_data
 def load_regions(country: str) -> pd.DataFrame:
-    df = pd.read_csv(os.path.join(HERE, "au_regions.csv" if country == "AU" else "nz_regions.csv"))
-    for c in ["direct_intent", "unaware_intent"]:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    return df
+        df = pd.read_csv(os.path.join(HERE, "au_regions.csv" if country == "AU" else "nz_regions.csv"))
+        for c in ["direct_intent", "unaware_intent"]:
+                    df[c] = pd.to_numeric(df[c], errors="coerce")
+                return df
 
 
-# geoBoundaries REST API — returns metadata with a real CDN download URL (not Git LFS)
 _GEO_API = {
-    "AU": "https://www.geoboundaries.org/api/current/gbOpen/AUS/ADM1/",
-    "NZ": "https://www.geoboundaries.org/api/current/gbOpen/NZL/ADM1/",
+        "AU": "https://www.geoboundaries.org/api/current/gbOpen/AUS/ADM1/",
+        "NZ": "https://www.geoboundaries.org/api/current/gbOpen/NZL/ADM1/",
 }
 
 
 @st.cache_data(show_spinner="Loading region boundaries...")
 def load_geojson(country: str) -> dict:
-    # Step 1: ask the API for the real download URL (avoids Git LFS pointer files)
-    meta = requests.get(_GEO_API[country], timeout=30).json()
+        meta = requests.get(_GEO_API[country], timeout=30).json()
     url = meta["gjDownloadURL"]
-    # Step 2: download the actual GeoJSON
     r = requests.get(url, timeout=120)
     r.raise_for_status()
     return mapviz.simplify_geojson(r.json(), country)
 
 
-st.title("Fussy - Australia & New Zealand acquisition heatmap")
-st.caption("Where should a premium / natural deodorant brand concentrate launch marketing? "
-           "An opportunity index (0-100), not a raw demand ranking. Adjust the weights and the map re-ranks.")
-
 with st.sidebar:
-    st.header("Criteria weights")
-    st.caption("Defaults follow the agreed model; renormalised to sum to 1.")
+        st.header("Controls")
+    country = st.radio(
+                "Market",
+                ["AU", "NZ"],
+                format_func=lambda c: "Australia" if c == "AU" else "New Zealand",
+    )
+    st.divider()
+    st.subheader("Criteria weights")
+    st.caption("Renormalised to sum to 1.")
     w_direct = st.slider("Direct category intent", 0.0, 1.0, 0.30, 0.05)
     w_unaware = st.slider("Unaware adjacent intent", 0.0, 1.0, 0.25, 0.05)
     w_comp = st.slider("Competition (confidence-gated)", 0.0, 1.0, 0.30, 0.05)
@@ -64,64 +60,66 @@ with st.sidebar:
     w_reg = st.slider("Sustainability / regulatory", 0.0, 1.0, 0.05, 0.05)
     conf_threshold = st.slider("Low-confidence flag below C =", 0.0, 1.0, 0.40, 0.05)
     weights = {"direct": w_direct, "unaware": w_unaware, "competition": w_comp,
-               "climate": w_climate, "regulatory": w_reg}
+                              "climate": w_climate, "regulatory": w_reg}
 
-country = st.radio("Market", ["AU", "NZ"], horizontal=True,
-                   format_func=lambda c: "Australia" if c == "AU" else "New Zealand")
+country_name = "Australia" if country == "AU" else "New Zealand"
+
+st.title(f"Natural Deodorant Acquisition Opportunity: {country_name}")
+st.caption(
+        "Where should a natural deodorant brand concentrate launch marketing? "
+        "An opportunity index (0-100), not a raw demand ranking. "
+        "Adjust the weights in the sidebar and the map re-ranks."
+)
 
 raw = load_regions(country)
 if raw["direct_intent"].isna().all() and raw["unaware_intent"].isna().all():
-    st.error("Demand data not populated. Run fetch_demand.py and recommit the CSVs.")
+        st.error("Demand data not populated. Run fetch_demand.py and recommit the CSVs.")
     st.stop()
 
 df = scoring.score(raw, weights=weights, conf_threshold=conf_threshold)
 
 try:
-    gj = load_geojson(country)
+        gj = load_geojson(country)
 except Exception as e:  # noqa: BLE001
     st.error(f"Could not load region boundaries: {e}")
     st.stop()
 
 missing = sorted(set(df["region"]) - {f["properties"]["region"] for f in gj["features"]})
 if missing:
-    st.error(f"These regions have no matching map boundary and would be dropped: {missing}")
+        st.error(f"These regions have no matching map boundary and would be dropped: {missing}")
 
-left, right = st.columns([1.05, 1.0])
-with left:
-    st.plotly_chart(
-        mapviz.make_map(df, gj, f"{'Australia' if country == 'AU' else 'New Zealand'} opportunity", country=country),
-        width="stretch")
-    st.caption("Thick blue outline = low confidence (thin competitor data; score leans on search intent).")
+# Full-width map
+st.plotly_chart(
+        mapviz.make_map(df, gj, f"{country_name} opportunity", country=country),
+        use_container_width=True,
+)
+st.caption("Thick blue outline = low confidence (thin competitor data; score leans on search intent).")
 
-with right:
-    st.subheader("Ranking")
-    show = df[["rank", "region", "score_100", "tier", "low_confidence", "direct_norm",
-               "unaware_norm", "comp_net_norm", "comp_C", "climate_norm", "regulatory_norm", "population"]].copy()
-    for c in ["direct_norm", "unaware_norm", "comp_net_norm", "comp_C", "climate_norm", "regulatory_norm"]:
-        show[c] = (show[c] * 100).round(0)
-    st.dataframe(
-        show, hide_index=True, height=560,
+# Full-width ranking table below the map
+st.subheader("Ranking")
+show = df[["rank", "region", "score_100", "tier", "low_confidence", "direct_norm",
+                      "unaware_norm", "comp_net_norm", "comp_C", "climate_norm", "regulatory_norm", "population"]].copy()
+for col in ["direct_norm", "unaware_norm", "comp_net_norm", "comp_C", "climate_norm", "regulatory_norm"]:
+    show[col] = (show[col] * 100).round(0)
+st.dataframe(
+    show, hide_index=True, height=400,
         column_config={
-            "rank": st.column_config.NumberColumn("#", width="small"),
-            "region": "Region",
-            "score_100": st.column_config.NumberColumn("Score", format="%.1f"),
-            "tier": "Tier",
-            "low_confidence": st.column_config.CheckboxColumn("Low conf."),
-            "direct_norm": st.column_config.NumberColumn("Direct", format="%d"),
-            "unaware_norm": st.column_config.NumberColumn("Unaware", format="%d"),
-            "comp_net_norm": st.column_config.NumberColumn("Compet.", format="%d"),
-            "comp_C": st.column_config.NumberColumn("Conf.", format="%d"),
-            "climate_norm": st.column_config.NumberColumn("Climate", format="%d"),
-            "regulatory_norm": st.column_config.NumberColumn("Reg.", format="%d"),
-            "population": st.column_config.NumberColumn("Population", format="%d"),
+                    "rank": st.column_config.NumberColumn("#", width="small"),
+                    "region": "Region",
+                    "score_100": st.column_config.NumberColumn("Score", format="%.1f"),
+                    "tier": "Tier",
+                    "low_confidence": st.column_config.CheckboxColumn("Low conf."),
+                    "direct_norm": st.column_config.NumberColumn("Direct", format="%d"),
+                    "unaware_norm": st.column_config.NumberColumn("Unaware", format="%d"),
+                    "comp_net_norm": st.column_config.NumberColumn("Compet.", format="%d"),
+        "comp_C": st.column_config.NumberColumn("Conf.", format="%d"),
+                    "climate_norm": st.column_config.NumberColumn("Climate", format="%d"),
+                    "regulatory_norm": st.column_config.NumberColumn("Reg.", format="%d"),
+                    "population": st.column_config.NumberColumn("Population", format="%d"),
         },
-    )
-    st.caption("Component columns are 0-100 normalised within the country. Population is context, not scored.")
-
-if country == "AU":
-    st.info('Live validation: "fussy natural deodorant" is currently a breakout rising query in Australian '
-            "Google Trends, evidence the brand is already generating branded demand in-market.")
+)
+st.caption("Component columns are 0-100 normalised within the country. Population is context, not scored.")
 
 with st.expander("Methodology, data sources and limitations"):
-    _m = os.path.join(HERE, "methodology.md")
+        _m = os.path.join(HERE, "methodology.md")
     st.markdown(open(_m, encoding="utf-8").read() if os.path.exists(_m) else "See README.md for methodology.")
