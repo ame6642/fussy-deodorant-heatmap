@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 DEFAULT_WEIGHTS = {
-    "direct": 0.30, "unaware": 0.25, "competition": 0.30, "climate": 0.10, "regulatory": 0.05,
+    "direct": 0.30, "unaware": 0.25, "competition": 0.30, "climate": 0.10, "income": 0.05,
 }
 BRAND_COLS = ["s_nopong", "s_woohoo", "s_kindly", "s_blackchicken", "s_noosa", "s_native", "s_schmidts"]
 CONF_THRESHOLD = 0.40
@@ -90,7 +90,7 @@ def score(df: pd.DataFrame, weights: dict | None = None,
     df["direct_norm"] = norm_robust(df["direct_intent"])
     df["unaware_norm"] = norm_robust(df["unaware_intent"])
     df["climate_norm"] = 0.6 * norm(df["temp_c"]) + 0.4 * norm(df["humidity_pct"])
-    df["regulatory_norm"] = norm(df["regulatory_raw"])
+    df["income_norm"] = norm(df["avg_income"])
 
     comp = _competition(df)
     df = pd.concat([df, comp], axis=1)
@@ -115,7 +115,7 @@ def score(df: pd.DataFrame, weights: dict | None = None,
                    + wu * df["unaware_norm"]
                    + w_comp_eff * df["comp_net_norm"]
                    + w["climate"] * df["climate_norm"]
-                   + w["regulatory"] * df["regulatory_norm"])
+                   + w["income"] * df["income_norm"])
     df["score_100"] = (df["score"] * 100).round(1)
     df["low_confidence"] = df["comp_C"] < conf_threshold
 

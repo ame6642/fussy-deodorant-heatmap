@@ -1,7 +1,7 @@
 """
 Boundary simplification and choropleth construction for the heatmap.
 
-Uses go.Choroplethmapbox with carto-positron tiles.
+Uses go.Choroplethmapbox with white-bg tiles.
 Requires plotly>=5,<6 (pinned in requirements.txt).
 """
 import plotly.graph_objects as go
@@ -45,7 +45,7 @@ def _round_geom(g, nd):
 
 
 def simplify_geojson(raw: dict, country: str) -> dict:
-    """geoBoundaries FeatureCollection -> light FeatureCollection with properties.region matching the CSVs."""
+    """geoBoundaries ADM1 FeatureCollection -> light FeatureCollection matching CSVs."""
     nd = COORD_DP[country]
     feats = []
     for f in raw.get("features", []):
@@ -62,15 +62,39 @@ def simplify_geojson(raw: dict, country: str) -> dict:
     return {"type": "FeatureCollection", "features": feats}
 
 
-def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
+def simplify_geojson_adm2(raw: dict) -> dict:
+    """geoBoundaries ADM2 FeatureCollection -> lightweight hover-only layer."""
+    nd = 2  # aggressive simplification for sub-region overlay performance
+    feats = []
+    for f in raw.get("features", []):
+        name = f["properties"].get("shapeName", "")
+        if not name:
+            continue
+        geom = _round_geom(f["geometry"], nd)
+        if geom["type"] == "Polygon" and not geom["coordinates"]:
+            continue
+        if geom["type"] == "MultiPolygon" and not geom["coordinates"]:
+            continue
+        feats.append({
+            "type": "Feature",
+            "properties": {"name": name},
+            "geometry": geom,
+        })
+    return {"type": "FeatureCollection", "features": feats}
+
+
+def make_map(df, gj: dict, title: str, country: str = "AU",
+             gj2: dict | None = None) -> go.Figure:
+    # customdata cols: tier, direct_norm, unaware_norm, comp_net_norm,
+    #                  comp_C, climate_norm, avg_income, population
     cd = df[["tier", "direct_norm", "unaware_norm", "comp_net_norm",
-             "comp_C", "climate_norm", "regulatory_norm", "population"]].copy()
+             "comp_C", "climate_norm", "avg_income", "population"]].copy()
     hover = (
         "<b>%{location}</b><br>"
         "Opportunity %{z:.1f}/100  (tier %{customdata[0]})<br>"
         "Direct intent %{customdata[1]:.2f} | Unaware %{customdata[2]:.2f}<br>"
         "Competition %{customdata[3]:.2f} (confidence %{customdata[4]:.2f})<br>"
-        "Climate %{customdata[5]:.2f} | Regulatory %{customdata[6]:.2f}<br>"
+        "Climate %{customdata[5]:.2f} | Avg income $%{customdata[6]:,.0f}<br>"
         "Population %{customdata[7]:,.0f}<extra></extra>"
     )
 
@@ -106,6 +130,24 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
             marker_line_width=3.0,
             hoverinfo="skip",
         ))
+
+    # ADM2 sub-region overlay — transparent fill, thin grey border, name-only hover
+    if gj2 is not None:
+        features = gj2.get("features", [])
+        if features:
+            names = [f["properties"]["name"] for f in features]
+            fig.add_trace(go.Choroplethmapbox(
+                geojson=gj2,
+                featureidkey="properties.name",
+                locations=names,
+                z=[0] * len(names),
+                showscale=False,
+                colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
+                marker_line_color="rgba(60,60,60,0.35)",
+                marker_line_width=0.5,
+                hovertemplate="<b>%{location}</b><extra></extra>",
+                name="",
+            ))
 
     fig.update_layout(
         mapbox_style="white-bg",

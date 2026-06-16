@@ -33,6 +33,11 @@ _GEO_API = {
     "NZ": "https://www.geoboundaries.org/api/current/gbOpen/NZL/ADM1/",
 }
 
+_GEO_API_ADM2 = {
+    "AU": "https://www.geoboundaries.org/api/current/gbOpen/AUS/ADM2/",
+    "NZ": None,  # NZ ADM1 is fine
+}
+
 
 @st.cache_data(show_spinner="Loading region boundaries...")
 def load_geojson(country: str) -> dict:
@@ -41,6 +46,21 @@ def load_geojson(country: str) -> dict:
     r = requests.get(url, timeout=120)
     r.raise_for_status()
     return mapviz.simplify_geojson(r.json(), country)
+
+
+@st.cache_data(show_spinner="Loading sub-region boundaries...")
+def load_geojson_adm2(country: str) -> dict | None:
+    api_url = _GEO_API_ADM2.get(country)
+    if api_url is None:
+        return None
+    try:
+        meta = requests.get(api_url, timeout=30).json()
+        url = meta["gjDownloadURL"]
+        r = requests.get(url, timeout=120)
+        r.raise_for_status()
+        return mapviz.simplify_geojson_adm2(r.json())
+    except Exception:  # noqa: BLE001
+        return None
 
 
 with st.sidebar:
@@ -57,10 +77,10 @@ with st.sidebar:
     w_unaware = st.slider("Unaware adjacent intent", 0.0, 1.0, 0.25, 0.05)
     w_comp = st.slider("Competition (confidence-gated)", 0.0, 1.0, 0.30, 0.05)
     w_climate = st.slider("Climate / sweat", 0.0, 1.0, 0.10, 0.05)
-    w_reg = st.slider("Sustainability / regulatory", 0.0, 1.0, 0.05, 0.05)
+    w_income = st.slider("Average income", 0.0, 1.0, 0.05, 0.05)
     conf_threshold = st.slider("Low-confidence flag below C =", 0.0, 1.0, 0.40, 0.05)
     weights = {"direct": w_direct, "unaware": w_unaware, "competition": w_comp,
-               "climate": w_climate, "regulatory": w_reg}
+               "climate": w_climate, "income": w_income}
 
 country_name = "Australia" if country == "AU" else "New Zealand"
 
@@ -88,19 +108,22 @@ missing = sorted(set(df["region"]) - {f["properties"]["region"] for f in gj["fea
 if missing:
     st.error(f"These regions have no matching map boundary and would be dropped: {missing}")
 
+# Load sub-region (ADM2) boundaries for zoom-in detail layer
+gj2 = load_geojson_adm2(country)
+
 # Full-width map
 st.plotly_chart(
-    mapviz.make_map(df, gj, f"{country_name} opportunity", country=country),
+    mapviz.make_map(df, gj, f"{country_name} opportunity", country=country, gj2=gj2),
     use_container_width=True,
     config={"scrollZoom": True},
 )
-st.caption("Thick blue outline = low confidence (thin competitor data; score leans on search intent).")
+st.caption("Thick blue outline = low confidence (thin competitor data; score leans on search intent). Zoom in to see local government area boundaries.")
 
 # Full-width ranking table below the map
 st.subheader("Ranking")
 show = df[["rank", "region", "score_100", "tier", "low_confidence", "direct_norm",
-           "unaware_norm", "comp_net_norm", "comp_C", "climate_norm", "regulatory_norm", "population"]].copy()
-for col in ["direct_norm", "unaware_norm", "comp_net_norm", "comp_C", "climate_norm", "regulatory_norm"]:
+           "unaware_norm", "comp_net_norm", "comp_C", "climate_norm", "avg_income", "population"]].copy()
+for col in ["direct_norm", "unaware_norm", "comp_net_norm", "comp_C", "climate_norm"]:
     show[col] = (show[col] * 100).round(0)
 st.dataframe(
     show, hide_index=True, height=400,
@@ -115,11 +138,11 @@ st.dataframe(
         "comp_net_norm": st.column_config.NumberColumn("Compet.", format="%d"),
         "comp_C": st.column_config.NumberColumn("Conf.", format="%d"),
         "climate_norm": st.column_config.NumberColumn("Climate", format="%d"),
-        "regulatory_norm": st.column_config.NumberColumn("Reg.", format="%d"),
+        "avg_income": st.column_config.NumberColumn("Avg Income ($)", format="%d"),
         "population": st.column_config.NumberColumn("Population", format="%d"),
     },
 )
-st.caption("Component columns are 0–100 normalised within the country. Population is context, not scored.")
+st.caption("Component columns are 0–100 normalised within the country. Avg Income and Population are context, not normalised here.")
 
 with st.expander("Methodology, data sources and limitations"):
     _m = os.path.join(HERE, "methodology.md")
