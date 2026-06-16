@@ -1,21 +1,12 @@
 """
 Boundary simplification and choropleth construction for the heatmap.
 
-Uses go.Choroplethmapbox with a Carto-positron tile background for crisp
-region outlines and proper geographic framing for both AU and NZ.
+Uses go.Choropleth with fitbounds + visible=False so the map blends into the
+page background with no ocean tiles — matching the shower-filter heatmap style.
 """
 import plotly.graph_objects as go
 
-# Per-country map framing
-_MAP_CENTRE = {
-    "AU": {"lat": -25.5, "lon": 134.0},
-    "NZ": {"lat": -41.5, "lon": 172.5},
-}
-_MAP_ZOOM = {"AU": 2.8, "NZ": 4.2}
-
-# Higher precision to preserve region shapes (was 1 for AU — too coarse)
 COORD_DP = {"AU": 2, "NZ": 3}
-
 DROP_FEATURES = {"Other Territories", "Chatham Islands Territory"}
 NAME_FIX = {"Manawatu-Wanganui": "Manawatu-Whanganui"}
 
@@ -76,7 +67,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
         "Climate %{customdata[5]:.2f} | Regulatory %{customdata[6]:.2f}<br>"
         "Population %{customdata[7]:,.0f}<extra></extra>"
     )
-    fig = go.Figure(go.Choroplethmapbox(
+    fig = go.Figure(go.Choropleth(
         geojson=gj,
         featureidkey="properties.region",
         locations=df["region"],
@@ -86,6 +77,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
         marker_line_color="white",
         marker_line_width=0.8,
         colorbar_title="Opportunity",
+        colorbar=dict(thickness=15, len=0.6),
         customdata=cd,
         hovertemplate=hover,
     ))
@@ -93,7 +85,7 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
     # Blue outline overlay for low-confidence regions
     low = df[df["low_confidence"]]
     if not low.empty:
-        fig.add_trace(go.Choroplethmapbox(
+        fig.add_trace(go.Choropleth(
             geojson=gj,
             featureidkey="properties.region",
             locations=low["region"],
@@ -105,12 +97,12 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
             hoverinfo="skip",
         ))
 
+    # fitbounds auto-zooms to just the data; visible=False removes the geo
+    # background entirely so the map blends into the page (no ocean frame).
+    fig.update_geos(fitbounds="locations", visible=False)
     fig.update_layout(
-        mapbox_style="carto-positron",
-        mapbox_center=_MAP_CENTRE[country],
-        mapbox_zoom=_MAP_ZOOM[country],
-        title=title,
-        margin=dict(l=0, r=0, t=40, b=0),
-        height=560,
+        margin=dict(r=0, t=0, l=0, b=0),
+        height=520,
+        coloraxis_colorbar_title="Opportunity",
     )
     return fig
