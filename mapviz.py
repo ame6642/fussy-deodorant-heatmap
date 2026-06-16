@@ -103,6 +103,8 @@ def make_map(df, gj: dict, title: str, country: str = "AU") -> go.Figure:
     fig.update_layout(
         margin=dict(r=0, t=0, l=0, b=0),
         height=520,
+        paper_bgcolor="rgba(0,0,0,0)",
+        geo=dict(bgcolor="rgba(0,0,0,0)"),
         coloraxis_colorbar_title="Opportunity",
     )
     return fig
