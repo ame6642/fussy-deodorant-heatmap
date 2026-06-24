@@ -74,9 +74,9 @@ with st.sidebar:
     st.subheader("Criteria weights")
     st.caption("Renormalised to sum to 1. Competition is shown as context below, not scored.")
     w_direct = st.slider("Direct category intent", 0.0, 1.0, 0.30, 0.05)
-    w_unaware = st.slider("Unaware adjacent intent", 0.0, 1.0, 0.25, 0.05)
+    w_unaware = st.slider("Unaware adjacent intent", 0.0, 1.0, 0.30, 0.05)
     w_climate = st.slider("Climate / sweat", 0.0, 1.0, 0.10, 0.05)
-    w_income = st.slider("Average income", 0.0, 1.0, 0.05, 0.05)
+    w_income = st.slider("Average income", 0.0, 1.0, 0.30, 0.05)
     weights = {"direct": w_direct, "unaware": w_unaware,
                "climate": w_climate, "income": w_income}
 

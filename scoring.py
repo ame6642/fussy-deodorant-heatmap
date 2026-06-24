@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 SCORING_KEYS = ["direct", "unaware", "climate", "income"]
-DEFAULT_WEIGHTS = {"direct": 0.30, "unaware": 0.25, "climate": 0.10, "income": 0.05}
+DEFAULT_WEIGHTS = {"direct": 0.30, "unaware": 0.30, "climate": 0.10, "income": 0.30}
 BRAND_COLS = ["s_nopong", "s_woohoo", "s_kindly", "s_blackchicken", "s_noosa", "s_native", "s_schmidts"]
 CONF_THRESHOLD = 0.40
 VARIES_CV_MIN = 0.15          # coefficient of variation of shelf presence to call competition "varying"
