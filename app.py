@@ -73,10 +73,22 @@ with st.sidebar:
     st.divider()
     st.subheader("Criteria weights")
     st.caption("Renormalised to sum to 1. Competition is shown as context below, not scored.")
-    w_direct = st.slider("Direct category intent", 0.0, 1.0, 0.30, 0.05)
-    w_unaware = st.slider("Unaware adjacent intent", 0.0, 1.0, 0.30, 0.05)
-    w_climate = st.slider("Climate / sweat", 0.0, 1.0, 0.10, 0.05)
-    w_income = st.slider("Average income", 0.0, 1.0, 0.30, 0.05)
+    w_direct = st.slider("Direct category intent", 0.0, 1.0, 0.30, 0.05,
+        help="Google Trends search volume for natural deodorant terms (e.g. 'natural deodorant', "
+             "'aluminium free deodorant') within each region. Measures how many people are already "
+             "actively looking for the product category. Higher = more in-market demand.")
+    w_unaware = st.slider("Unaware adjacent intent", 0.0, 1.0, 0.30, 0.05,
+        help="Google Trends search volume for related but non-brand queries (e.g. 'sweating too much', "
+             "'body odour', 'microplastics') from people who may not know about effective, natural, "
+             "deodorants or are health conscious in general. Higher = larger pool of convertible prospects.")
+    w_climate = st.slider("Climate / sweat", 0.0, 1.0, 0.10, 0.05,
+        help="A composite of annual mean temperature and humidity for the region's main population centre "
+             "(BOM/NIWA data). Hotter, more humid regions have higher year-round deodorant need. "
+             "Weighted 60% temperature, 40% humidity.")
+    w_income = st.slider("Average income", 0.0, 1.0, 0.30, 0.05,
+        help="Median personal income for the region (ABS 2022-23 for Australia, Stats NZ 2023 for "
+             "New Zealand). Natural deodorant commands a price premium over conventional products, "
+             "so higher-income regions have greater purchasing capacity.")
     weights = {"direct": w_direct, "unaware": w_unaware,
                "climate": w_climate, "income": w_income}
 
